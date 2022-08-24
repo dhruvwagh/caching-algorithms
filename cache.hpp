@@ -43,7 +43,7 @@ struct belady {
     if (hit)
       lookup->second = {order, val};
     else {
-      if (table.size() >= size) evict();
+      while (table.size() >= size) evict();
       lookup = table.insert({key, {order, val}}).first;
     }
     heap.push_back({order, lookup});
@@ -56,10 +56,11 @@ struct belady {
   }
 
   void evict() {
-    auto victim = heap.front();
+    auto [order, victim] = heap.front();
     std::pop_heap(heap.begin(), heap.end(), cmp);
     heap.pop_back();
-    table.erase(victim.second);
+    if (order == victim->second.first)
+      table.erase(victim);
   }
 
   void describe() {
