@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <limits>
 #include <list>
@@ -146,6 +147,64 @@ struct mru {
   void describe() {
     std::cout
         << "Cache Eviction Policy: MRU\n"
+        << "Hash table size: " << size << std::endl;
+  }
+};
+
+template <size_t K>
+struct lru_k {
+  const size_t size = max_size;
+  using order = std::list<size_t>;
+  using k_last = std::pair<order::iterator, size_t>;
+  using element = std::pair<k_last, void*>;
+  std::unordered_map<size_t, element> table;
+  std::array<order, K> lru_n;
+
+  lru_k(size_t size) : size(size) {
+    table.reserve(size);
+  }
+
+  auto set(size_t key, void* val) {
+    auto lookup = table.find(key);
+    auto hit = lookup != table.end();
+    if (hit)
+      lookup->second.first = move_to_front(lookup->second.first);
+    else {
+      if (table.size() >= size) evict();
+      auto& lru_ = lru_n[0];
+      lru_.push_front(key);
+      table.insert({key, {{lru_.begin(), 0}, val}});
+    }
+    return hit;
+  }
+
+  void evict() {
+    for (size_t i = K; i--;)
+      if (auto& lru_ = lru_n[i]; !lru_.empty()) {
+        auto victim = lru_.back();
+        lru_.pop_back();
+        table.erase(victim);
+        return;
+      }
+  }
+
+  k_last move_to_front(k_last el) {
+    auto [it, k] = el;
+    auto& lru_ = lru_n[k];
+    if (k == K - 1) {
+      lru_.splice(lru_.begin(), lru_, it);
+      return el;
+    } else {
+      auto& lru_next = lru_n[k + 1];
+      lru_next.push_front(*it);
+      lru_.erase(it);
+      return {lru_next.begin(), k + 1};
+    }
+  }
+
+  void describe() {
+    std::cout
+        << "Cache Eviction Policy: LRU-" << K << '\n'
         << "Hash table size: " << size << std::endl;
   }
 };
