@@ -1,8 +1,72 @@
+#include <algorithm>
 #include <cstddef>
+#include <limits>
 #include <list>
 #include <unordered_map>
 
 static const size_t max_size = 1 << 20;
+
+struct belady {
+  const size_t size = max_size;
+  using element = std::pair<size_t, void*>;
+  using cache_table = std::unordered_map<size_t, element>;
+  cache_table table;
+
+  using leaf = std::pair<size_t, cache_table::iterator>;
+  std::vector<leaf> heap;
+
+  using order = std::vector<size_t>;
+  order chain;
+  order::iterator head;
+
+  belady(std::vector<size_t> future, size_t size)
+      : size(size), chain(order(future.size(), 0)), head(chain.begin()) {
+    std::unordered_map<size_t, size_t> history;
+    for (size_t i = 0; i < future.size(); ++i) {
+      auto item = future[i];
+      auto prev = history.find(item);
+      if (prev != history.end()) {
+        chain[prev->second] = i - prev->second;
+        prev->second = i;
+      } else
+        history.insert({item, i});
+    }
+    for (auto [key, val] : history)
+      chain[val] = std::numeric_limits<size_t>::max();
+  }
+
+  auto set(size_t key, void* val) {
+    auto lookup = table.find(key);
+    auto hit = lookup != table.end();
+    auto order = *head++;
+    if (hit)
+      lookup->second = {order, val};
+    else {
+      if (table.size() >= size) evict();
+      lookup = table.insert({key, {order, val}}).first;
+    }
+    heap.push_back({order, lookup});
+    std::push_heap(heap.begin(), heap.end(), cmp);
+    return hit;
+  }
+
+  static bool cmp(leaf const& lhs, leaf const& rhs) {
+    return lhs.first < rhs.first;
+  }
+
+  void evict() {
+    auto victim = heap.front();
+    std::pop_heap(heap.begin(), heap.end(), cmp);
+    heap.pop_back();
+    table.erase(victim.second);
+  }
+
+  void describe() {
+    std::cout
+        << "Cache Eviction Policy: Belady's algorithm\n"
+        << "Cache size: " << size << std::endl;
+  }
+};
 
 struct lru {
   const size_t size = max_size;

@@ -46,6 +46,9 @@ int main(int argc, char const* argv[]) {
 
   const size_t size = 1 << 15;
 
+  belady cache_opt(io, size);
+  hit_rate(io, cache_opt);
+
   lru cache_lru(size);
   hit_rate(io, cache_lru);
 
