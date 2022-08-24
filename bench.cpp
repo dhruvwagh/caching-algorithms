@@ -46,8 +46,13 @@ int main(int argc, char const* argv[]) {
   auto fname = argv[1];
   auto io = loadmem(fname);
 
-  lru cache(1 << 15);
-  hit_rate(io, cache);
+  const size_t size = 1 << 15;
+
+  lru cache_lru(size);
+  hit_rate(io, cache_lru);
+
+  mru cache_mru(size);
+  hit_rate(io, cache_mru);
 
   std::cout << std::flush;
   return 0;
