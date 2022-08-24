@@ -6,18 +6,18 @@ LDFLAGS := $(LDFLAGS)
 
 HEADERS = *.h *.hpp
 
-.PRECIOUS: %.o %-assert.o
+.PRECIOUS: %.o
 
 OBJS = $(patsubst %.cpp,%.o,$(wildcard *.cpp))
 
-.PHONY: all
+.PHONY: all clean
 
 BINS = bench.out
 
 all: $(BINS) $(OBJS) $(STATIC_OBJS)
 
 clean:
-	/bin/rm -f $(BINS) #$(OBJS) $(STATIC_OBJS)
+	/bin/rm -f $(BINS) $(OBJS) $(STATIC_OBJS)
 
 %.o: %.cpp ${HEADERS} Makefile
 	$(CXX) -c $(CFLAGS) $< -o $@
