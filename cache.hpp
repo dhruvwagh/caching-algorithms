@@ -2,8 +2,10 @@
 #include <list>
 #include <unordered_map>
 
+static const size_t max_size = 1 << 20;
+
 struct lru {
-  const size_t size = 1 << 20;
+  const size_t size = max_size;
   using order = std::list<size_t>;
   using element = std::pair<order::iterator, void*>;
   std::unordered_map<size_t, element> table;
@@ -33,7 +35,7 @@ struct lru {
   }
 
   void move_to_front(order::iterator el) {
-    lru_.splice(lru_.begin(), lru_, el, std::next(el));
+    lru_.splice(lru_.begin(), lru_, el);
   }
 
   void describe() {
