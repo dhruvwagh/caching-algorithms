@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "cache.hpp"
+#include "felru.hpp"
 
 // See https://researcher.watson.ibm.com/researcher/view_person_subpage.php?id=4700 for
 // ARC traces
@@ -60,6 +61,9 @@ int main(int argc, char const* argv[]) {
 
   lru_k<5> cache_lru_5(size);
   hit_rate(io, cache_lru_5);
+
+  felru<bin_dictionary> cache_felru(size);
+  hit_rate(io, cache_felru);
 
   std::cout << std::flush;
   return 0;
