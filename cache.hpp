@@ -13,7 +13,7 @@ struct belady {
   using cache_table = std::unordered_map<size_t, element>;
   cache_table table;
 
-  using leaf = std::pair<size_t, cache_table::iterator>;
+  using leaf = std::pair<size_t, size_t>;
   std::vector<leaf> heap;
 
   using order = std::vector<size_t>;
@@ -46,7 +46,7 @@ struct belady {
       while (table.size() >= size) evict();
       lookup = table.insert({key, {order, val}}).first;
     }
-    heap.push_back({order, lookup});
+    heap.push_back({order, key});
     std::push_heap(heap.begin(), heap.end(), cmp);
     return hit;
   }
@@ -56,10 +56,12 @@ struct belady {
   }
 
   void evict() {
-    auto [order, victim] = heap.front();
+    auto [order, key] = heap.front();
     std::pop_heap(heap.begin(), heap.end(), cmp);
     heap.pop_back();
-    if (order == victim->second.first)
+    if (auto victim = table.find(key);
+        victim != table.end() &&
+        order == victim->second.first)
       table.erase(victim);
   }
 
