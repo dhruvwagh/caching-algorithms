@@ -36,8 +36,11 @@ auto hit_rate(std::vector<size_t> trace, Cache cache) {
     hit += cache.set(key, nullptr);
 
   auto ratio = (double)hit / (double)total;
-  std::cout << hit << " / " << total << " = " << ratio << " = " << ratio * 100 << " %" << std::endl;
+  std::cout << "Hit rate: " << hit << " / " << total << " = "
+            << ratio << " = " << ratio * 100 << " %" << std::endl;
 }
+
+static const char* sep = "-------------------------------------------------------";
 
 int main(int argc, char const* argv[]) {
   if (argc < 2) return 1;
@@ -47,24 +50,37 @@ int main(int argc, char const* argv[]) {
 
   const size_t size = 1 << 15;
 
+  std::cout << sep << std::endl;
+
   belady cache_opt(io, size);
   hit_rate(io, cache_opt);
+
+  std::cout << sep << std::endl;
 
   lru cache_lru(size);
   hit_rate(io, cache_lru);
 
+  std::cout << sep << std::endl;
+
   mru cache_mru(size);
   hit_rate(io, cache_mru);
+
+  std::cout << sep << std::endl;
 
   lru_k<2> cache_lru_2(size);
   hit_rate(io, cache_lru_2);
 
+  std::cout << sep << std::endl;
+
   lru_k<5> cache_lru_5(size);
   hit_rate(io, cache_lru_5);
+
+  std::cout << sep << std::endl;
 
   felru<bin_dictionary> cache_felru(size);
   hit_rate(io, cache_felru);
 
-  std::cout << std::flush;
+  std::cout << sep << std::endl;
+
   return 0;
 }
