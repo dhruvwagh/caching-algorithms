@@ -21,7 +21,8 @@ struct belady {
   order::iterator head;
 
   belady(std::vector<size_t> future, size_t size)
-      : size(size), chain(order(future.size(), 0)), head(chain.begin()) {
+      : size(size), chain(order(future.size())), head(chain.begin()) {
+    table.reserve(size);
     std::unordered_map<size_t, size_t> history;
     for (size_t i = 0; i < future.size(); ++i) {
       auto item = future[i];
@@ -41,7 +42,7 @@ struct belady {
     auto hit = lookup != table.end();
     auto order = *head++;
     if (hit)
-      lookup->second = {order, val};
+      lookup->second.first = order;
     else {
       while (table.size() >= size) evict();
       lookup = table.insert({key, {order, val}}).first;

@@ -55,8 +55,11 @@ int main(int argc, char const* argv[]) {
   mru cache_mru(size);
   hit_rate(io, cache_mru);
 
-  lru_k<2> cache_lru_k(size);
-  hit_rate(io, cache_lru_k);
+  lru_k<2> cache_lru_2(size);
+  hit_rate(io, cache_lru_2);
+
+  lru_k<5> cache_lru_5(size);
+  hit_rate(io, cache_lru_5);
 
   std::cout << std::flush;
   return 0;
