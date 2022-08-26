@@ -212,3 +212,57 @@ struct lru_k {
         << "Hash table size: " << size << std::endl;
   }
 };
+
+struct clock_lru {
+  const size_t size = max_size;
+  struct frame {
+    bool bit;
+    size_t key;
+  };
+  using order = std::list<frame>;
+  using element = std::pair<order::iterator, void*>;
+  std::unordered_map<size_t, element> table;
+  order clock_;
+
+  clock_lru(size_t size) : size(size) {
+    table.reserve(size);
+  }
+
+  auto set(size_t key, void* val) {
+    auto lookup = table.find(key);
+
+    auto hit = lookup != table.end();
+    if (hit)
+      lookup->second.first->bit = true;
+    else {
+      while (table.size() >= size) evict();
+      clock_.push_front({false, key});
+      table.insert({key, {clock_.begin(), val}});
+    }
+    return hit;
+  }
+
+  void evict() {
+    for (auto frame = clock_.end(); --frame != clock_.begin();) {
+      if (frame->bit)
+        frame->bit = false;
+      else {
+        auto victim = frame;
+        table.erase(victim->key);
+        rotate_to_front(victim);
+        clock_.erase(victim);
+        return;
+      }
+    }
+  }
+
+  void rotate_to_front(order::iterator el) {
+    clock_.splice(clock_.begin(), clock_, el, clock_.end());
+  }
+
+  void describe() {
+    std::cout
+        << "Cache Eviction Policy: CLOCK\n"
+        << "Hash table size: " << size << std::endl;
+  }
+};
