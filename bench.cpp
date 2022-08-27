@@ -72,8 +72,8 @@ int main(int argc, char const* argv[]) {
 
   std::cout << sep << std::endl;
 
-  lru_k<5> cache_lru_5(size);
-  hit_rate(io, cache_lru_5);
+  lru_k<3> cache_lru_3(size);
+  hit_rate(io, cache_lru_3);
 
   std::cout << sep << std::endl;
 

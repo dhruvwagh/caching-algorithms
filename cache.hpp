@@ -157,6 +157,7 @@ struct mru {
 
 template <size_t K>
 struct lru_k {
+  // reference : https://dl.acm.org/doi/10.1145/170036.170081
   const size_t size = max_size;
   using order = std::list<size_t>;
   using k_last = std::pair<order::iterator, size_t>;
@@ -183,8 +184,9 @@ struct lru_k {
   }
 
   void evict() {
-    for (size_t i = K; i--;)
-      if (auto& lru_ = lru_n[i]; !lru_.empty()) {
+    // recursive eviction subsidiary policy
+    for (auto& lru_ : lru_n)
+      if (!lru_.empty()) {
         auto victim = lru_.back();
         lru_.pop_back();
         table.erase(victim);
