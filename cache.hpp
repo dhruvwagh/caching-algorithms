@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <limits>
 #include <list>
+#include <set>
 #include <unordered_map>
 
 static const size_t max_size = 1 << 20;
@@ -159,11 +160,20 @@ template <size_t K>
 struct lru_k {
   // reference : https://dl.acm.org/doi/10.1145/170036.170081
   const size_t size = max_size;
-  using order = std::list<size_t>;
-  using k_last = std::pair<order::iterator, size_t>;
-  using element = std::pair<k_last, void*>;
+  struct frame {
+    size_t key;
+    size_t freq;
+    size_t window[K];
+    bool operator<(const frame other) const {
+      return (freq < other.freq) ||
+             ((freq == other.freq) && (window[0] < other.window[0]));
+    }
+  };
+  using order = std::set<frame>;
+  using element = std::pair<typename order::iterator, void*>;
   std::unordered_map<size_t, element> table;
-  std::array<order, K> lru_n;
+  order lru_;
+  size_t t = 0;
 
   lru_k(size_t size) : size(size) {
     table.reserve(size);
@@ -173,39 +183,32 @@ struct lru_k {
     auto lookup = table.find(key);
     auto hit = lookup != table.end();
     if (hit)
-      lookup->second.first = move_to_front(lookup->second.first);
+      move_to_front(lookup->second.first);
     else {
       if (table.size() >= size) evict();
-      auto& lru_ = lru_n[0];
-      lru_.push_front(key);
-      table.insert({key, {{lru_.begin(), 0}, val}});
+      auto it = lru_.insert({key, 0, {t}}).first;
+      table.insert({key, {it, val}});
     }
+    ++t;
     return hit;
   }
 
   void evict() {
     // recursive eviction subsidiary policy
-    for (auto& lru_ : lru_n)
-      if (!lru_.empty()) {
-        auto victim = lru_.back();
-        lru_.pop_back();
-        table.erase(victim);
-        return;
-      }
+    auto victim = lru_.begin();  // smallest in the set
+    table.erase(victim->key);
+    lru_.erase(victim);
   }
 
-  k_last move_to_front(k_last el) {
-    auto [it, k] = el;
-    auto& lru_ = lru_n[k];
-    if (k == K - 1) {
-      lru_.splice(lru_.begin(), lru_, it);
-      return el;
-    } else {
-      auto& lru_next = lru_n[k + 1];
-      lru_next.push_front(*it);
-      lru_.erase(it);
-      return {lru_next.begin(), k + 1};
-    }
+  void move_to_front(typename order::iterator& el) {
+    auto node = lru_.extract(el);
+    auto& frame = node.value();
+    if (frame.freq == K - 1)
+      std::rotate(frame.window, frame.window + 1, frame.window + K);
+    else
+      ++frame.freq;
+    frame.window[frame.freq] = t;
+    el = lru_.insert(std::move(node)).position;
   }
 
   void describe() {
