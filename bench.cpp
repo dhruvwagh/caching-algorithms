@@ -77,6 +77,11 @@ int main(int argc, char const* argv[]) {
 
   std::cout << sep << std::endl;
 
+  lfu cache_lfu(size);
+  hit_rate(io, cache_lfu);
+
+  std::cout << sep << std::endl;
+
   clock_lru cache_clock(size);
   hit_rate(io, cache_clock);
 

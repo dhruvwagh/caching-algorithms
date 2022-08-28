@@ -218,6 +218,60 @@ struct lru_k {
   }
 };
 
+struct lfu {
+  const size_t size = max_size;
+  struct frame {
+    size_t key;
+    size_t freq;
+    size_t last;
+    bool operator<(const frame other) const {
+      return (freq < other.freq) ||
+             ((freq == other.freq) && (last < other.last));
+    }
+  };
+  using order = std::set<frame>;
+  using element = std::pair<typename order::iterator, void*>;
+  std::unordered_map<size_t, element> table;
+  order lru_;
+  size_t t = 0;
+
+  lfu(size_t size) : size(size) {
+    table.reserve(size);
+  }
+
+  auto set(size_t key, void* val) {
+    auto lookup = table.find(key);
+    auto hit = lookup != table.end();
+    if (hit)
+      move_to_front(lookup->second.first);
+    else {
+      if (table.size() >= size) evict();
+      auto it = lru_.insert({key, 0, t}).first;
+      table.insert({key, {it, val}});
+    }
+    ++t;
+    return hit;
+  }
+
+  void evict() {
+    auto victim = lru_.begin();  // smallest in the set
+    table.erase(victim->key);
+    lru_.erase(victim);
+  }
+
+  void move_to_front(typename order::iterator& el) {
+    auto node = lru_.extract(el);
+    ++node.value().freq;
+    el = lru_.insert(std::move(node)).position;
+  }
+
+  void describe() {
+    std::cout
+        << "Cache Eviction Policy: LFU" << '\n'
+        << "Hash table size: " << size << std::endl;
+  }
+};
+
 struct clock_lru {
   const size_t size = max_size;
   struct frame {
