@@ -14,7 +14,13 @@ struct belady {
   using cache_table = std::unordered_map<size_t, element>;
   cache_table table;
 
-  using leaf = std::pair<size_t, size_t>;
+  struct leaf {
+    size_t order;
+    size_t key;
+    bool operator<(const leaf& other) const {
+      return order < other.order;
+    }
+  };
   std::vector<leaf> heap;
 
   using order = std::vector<size_t>;
@@ -25,14 +31,16 @@ struct belady {
       : size(size), chain(order(future.size())), head(chain.begin()) {
     table.reserve(size);
     std::unordered_map<size_t, size_t> history;
-    for (size_t i = 0; i < future.size(); ++i) {
-      auto item = future[i];
+    size_t i = 0;
+    for (auto item : future) {
       auto prev = history.find(item);
-      if (prev != history.end()) {
+      if (prev == history.end())
+        history.insert({item, i});
+      else {
         chain[prev->second] = i - prev->second;
         prev->second = i;
-      } else
-        history.insert({item, i});
+      }
+      ++i;
     }
     for (auto [key, val] : history)
       chain[val] = std::numeric_limits<size_t>::max();
@@ -49,17 +57,13 @@ struct belady {
       lookup = table.insert({key, {order, val}}).first;
     }
     heap.push_back({order, key});
-    std::push_heap(heap.begin(), heap.end(), cmp);
+    std::push_heap(heap.begin(), heap.end());
     return hit;
-  }
-
-  static bool cmp(leaf const& lhs, leaf const& rhs) {
-    return lhs.first < rhs.first;
   }
 
   void evict() {
     auto [order, key] = heap.front();
-    std::pop_heap(heap.begin(), heap.end(), cmp);
+    std::pop_heap(heap.begin(), heap.end());
     heap.pop_back();
     if (auto victim = table.find(key);
         victim != table.end() &&

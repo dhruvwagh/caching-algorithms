@@ -3,6 +3,7 @@
 #include <cinttypes>
 #include <deque>
 #include <iostream>
+#include <optional>
 
 static const size_t max_entries = (1 << 20) / 27;
 
@@ -19,10 +20,11 @@ struct felru {
 
   auto set(size_t key, void* val) {
     auto hash = hasher(key);
-    auto [b, fp] = std::pair{hash % entries, static_cast<uint16_t>(hash / entries)};
+    auto b = hash % entries;
+    uint16_t fp = static_cast<uint16_t>(hash / entries);
     auto& pd_ = pds[b];
     auto lookup = pd_.find(fp);
-    auto hit = lookup != pd_.end();
+    auto hit = lookup.has_value();
     if (!hit) pd_.insert(fp, val);
     return hit;
   }
@@ -42,36 +44,43 @@ struct felru {
 };
 
 struct bin_dictionary {
-  using element = std::pair<uint16_t, void*>;
-  using bin = std::deque<element>;
+  struct element {
+    uint16_t fp;
+    void* val;
+    bool operator==(const element& other) const {
+      return fp == other.fp;
+    }
+  };
+  struct bin : std::deque<element> {
+    bool operator<(const bin& other) const {
+      return size() < other.size();
+    }
+  };
   std::array<bin, 32> bins;
   size_t occupancy = 0;
 
-  auto find(uint16_t fp) {
+  std::optional<element> find(uint16_t fp) {
     uint16_t q = fp & 31U;
     uint16_t r = fp >> 5;
-    auto cmp = [=](auto entry) { return entry.first == r; };
     auto bin_ = bins[q];
-    auto slot = std::find_if(bin_.begin(), bin_.end(), cmp);
+    auto slot = std::find(bin_.begin(), bin_.end(), element{r, nullptr});
     if (slot == bin_.end())
-      return end();
+      return {};
     else {
       std::rotate(bin_.begin(), slot, slot + 1);
-      return bin_.begin();
+      return bin_.front();
     }
   }
 
   void insert(uint16_t fp, void* val) {
-    auto cmp = [](auto a, auto b) { return a.size() < b.size(); };
-    for (; occupancy >= 27; --occupancy)
-      std::max_element(bins.begin(), bins.end(), cmp)->pop_front();
-
+    for (; occupancy >= 27; --occupancy) evict();
     uint16_t q = fp & 31U;
     uint16_t r = fp >> 5;
     bins[q].push_back({r, val});
     ++occupancy;
   }
 
-  bin::iterator begin() { return bins.front().begin(); }
-  bin::iterator end() { return bins.back().end(); }
+  void evict() {
+    std::max_element(bins.begin(), bins.end())->pop_front();
+  }
 };
