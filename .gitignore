@@ -1,4 +1,6 @@
 *.o
 *.out
+*.png
+*.yaml
 data/
 .vscode/

@@ -57,18 +57,17 @@ std::vector<size_t> load_arc(std::string fname) {
 
 template <class Cache>
 auto hit_rate(std::vector<size_t> trace, Cache cache) {
-  cache.describe();
   size_t total = trace.size();
   size_t hit = 0;
   for (auto key : trace)
     hit += cache.set(key, nullptr);
 
   auto ratio = (double)hit / (double)total;
-  std::cout << "Hit rate: " << hit << " / " << total << " = "
-            << ratio << " = " << ratio * 100 << " %" << std::endl;
-}
 
-static const char* sep = "-------------------------------------------------------";
+  std::cout << "  -\n"
+            << "    size: " << cache.size << '\n'
+            << "    hit_rate: " << ratio << std::endl;
+}
 
 int main(int argc, char const* argv[]) {
   if (argc < 2) return 1;
@@ -76,49 +75,55 @@ int main(int argc, char const* argv[]) {
   auto fname = std::string(argv[1]);
   auto io = fname.ends_with(".lis") ? load_arc(fname) : load_wiki(fname);
 
-  const size_t size = 1 << 14;
+  const std::vector<size_t> sizes = {1 << 13, 1 << 14, 1 << 15};
 
-  std::cout << sep << std::endl;
+  std::cout << "belady:" << std::endl;
+  for (auto size : sizes) {
+    belady cache_opt(io, size);
+    hit_rate(io, cache_opt);
+  }
 
-  belady cache_opt(io, size);
-  hit_rate(io, cache_opt);
+  std::cout << "lru:" << std::endl;
+  for (auto size : sizes) {
+    lru cache_lru(size);
+    hit_rate(io, cache_lru);
+  }
 
-  std::cout << sep << std::endl;
+  std::cout << "mru:" << std::endl;
+  for (auto size : sizes) {
+    mru cache_mru(size);
+    hit_rate(io, cache_mru);
+  }
 
-  lru cache_lru(size);
-  hit_rate(io, cache_lru);
+  std::cout << "lru_2:" << std::endl;
+  for (auto size : sizes) {
+    lru_k<2> cache_lru_2(size);
+    hit_rate(io, cache_lru_2);
+  }
 
-  std::cout << sep << std::endl;
+  std::cout << "lru_3:" << std::endl;
+  for (auto size : sizes) {
+    lru_k<3> cache_lru_3(size);
+    hit_rate(io, cache_lru_3);
+  }
 
-  mru cache_mru(size);
-  hit_rate(io, cache_mru);
+  std::cout << "lfu:" << std::endl;
+  for (auto size : sizes) {
+    lfu cache_lfu(size);
+    hit_rate(io, cache_lfu);
+  }
 
-  std::cout << sep << std::endl;
+  std::cout << "clock:" << std::endl;
+  for (auto size : sizes) {
+    clock_lru cache_clock(size);
+    hit_rate(io, cache_clock);
+  }
 
-  lru_k<2> cache_lru_2(size);
-  hit_rate(io, cache_lru_2);
-
-  std::cout << sep << std::endl;
-
-  lru_k<3> cache_lru_3(size);
-  hit_rate(io, cache_lru_3);
-
-  std::cout << sep << std::endl;
-
-  lfu cache_lfu(size);
-  hit_rate(io, cache_lfu);
-
-  std::cout << sep << std::endl;
-
-  clock_lru cache_clock(size);
-  hit_rate(io, cache_clock);
-
-  std::cout << sep << std::endl;
-
-  felru<bin_dictionary> cache_felru(size);
-  hit_rate(io, cache_felru);
-
-  std::cout << sep << std::endl;
+  std::cout << "felru:" << std::endl;
+  for (auto size : sizes) {
+    felru<bin_dictionary> cache_felru(size);
+    hit_rate(io, cache_felru);
+  }
 
   return 0;
 }
