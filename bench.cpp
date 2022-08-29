@@ -75,7 +75,10 @@ int main(int argc, char const* argv[]) {
   auto fname = std::string(argv[1]);
   auto io = fname.ends_with(".lis") ? load_arc(fname) : load_wiki(fname);
 
-  const std::vector<size_t> sizes = {1 << 13, 1 << 14, 1 << 15};
+  std::vector<size_t> sizes;
+  sizes.reserve(10);
+  for (size_t i = 1; i <= 10; ++i)
+    sizes.push_back(i << 12);
 
   std::cout << "belady:" << std::endl;
   for (auto size : sizes) {
