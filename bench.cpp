@@ -1,6 +1,8 @@
 #include <algorithm>
 #include <fstream>
+#include <functional>
 #include <iostream>
+#include <map>
 #include <string>
 #include <utility>
 #include <vector>
@@ -8,13 +10,39 @@
 #include "cache.hpp"
 #include "felru.hpp"
 
+// See http://www.wikibench.eu/?page_id=60 for Wiki traces
+
+std::vector<size_t> load_wiki(std::string fname) {
+  std::ifstream f(fname);
+
+  std::hash<std::string> key;
+  std::map<size_t, size_t> timeline;
+  std::string link, flag;
+  double time;
+  for (size_t counter = 0UL;
+       (f >> counter) &&
+       (f >> time) &&
+       (f >> link) &&
+       (f >> flag);) {
+    timeline.insert({counter, key(link)});
+  }
+
+  std::vector<size_t> io;
+  io.reserve(timeline.size());
+  for (auto [_, key] : timeline)
+    io.push_back(key);
+  return io;
+}
+
 // See https://researcher.watson.ibm.com/researcher/view_person_subpage.php?id=4700 for
 // ARC traces
 
-std::vector<size_t> load_mem(const char* fname) {
+std::vector<size_t> load_arc(std::string fname) {
   std::ifstream f(fname);
+
   std::vector<size_t> io;
   io.reserve(1UL << 23);
+
   std::string dummy;
   for (size_t start, length = 0UL;
        (f >> start) &&
@@ -45,10 +73,10 @@ static const char* sep = "------------------------------------------------------
 int main(int argc, char const* argv[]) {
   if (argc < 2) return 1;
 
-  auto fname = argv[1];
-  auto io = load_mem(fname);
+  auto fname = std::string(argv[1]);
+  auto io = fname.ends_with(".lis") ? load_arc(fname) : load_wiki(fname);
 
-  const size_t size = 1 << 15;
+  const size_t size = 1 << 14;
 
   std::cout << sep << std::endl;
 
