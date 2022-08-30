@@ -20,12 +20,14 @@ files = Dict(
 )
 
 function main(files)
+    cmds = []
     for (in_f, out_f) = files
         in_f = string("./data/", in_f)
         out_f = string("./logs/", out_f, ".yaml")
-        println(out_f)
-        run(pipeline(`./bench.out $in_f`; stdout=out_f))
+        cmd = pipeline(`./bench.out $in_f`; stdout=out_f)
+        push!(cmds, cmd)
     end
+    run(reduce(&, cmds))
 end
 
 function plot_yaml()
