@@ -2,7 +2,14 @@ using Plots
 using YAML
 
 files = Dict(
+    "zipf_07.yaml" => "zipf_07",
+    "zipf_09.yaml" => "zipf_09",
     "P6.lis" => "p6",
+    "P8.lis" => "p8",
+    "P9.lis" => "p9",
+    "P10.lis" => "p10",
+    # "P11.lis" => "p11",
+    "P12.lis" => "p12",
     "OLTP.lis" => "oltp",
     "S1.lis" => "s1",
     "S2.lis" => "s2",

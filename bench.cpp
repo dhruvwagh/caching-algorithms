@@ -10,6 +10,18 @@
 #include "cache.hpp"
 #include "felru.hpp"
 
+std::vector<size_t> load_zipf(std::string fname) {
+  std::ifstream f(fname);
+
+  std::vector<size_t> io;
+  io.reserve(1UL << 23);
+
+  std::string dash;
+  for (size_t key = 0UL; (f >> dash) && (f >> key);)
+    io.push_back(key);
+  return io;
+}
+
 // See http://www.wikibench.eu/?page_id=60 for Wiki traces
 
 std::vector<size_t> load_wiki(std::string fname) {
@@ -73,7 +85,14 @@ int main(int argc, char const* argv[]) {
   if (argc < 2) return 1;
 
   auto fname = std::string(argv[1]);
-  auto io = fname.ends_with(".lis") ? load_arc(fname) : load_wiki(fname);
+
+  std::vector<size_t> io;
+  if (fname.ends_with(".lis"))
+    io = load_arc(fname);
+  else if (fname.ends_with(".yaml"))
+    io = load_zipf(fname);
+  else
+    io = load_wiki(fname);
 
   std::vector<size_t> sizes;
   sizes.reserve(10);
