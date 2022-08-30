@@ -7,6 +7,8 @@
 
 static const size_t max_entries = (1 << 20) / 27;
 
+static size_t bucket[27] = {0};
+
 template <class pd>
 struct felru {
   // reference : https://github.com/jbapple/crate-dictionary
@@ -40,6 +42,15 @@ struct felru {
     std::cout
         << "Cache Eviction Policy: FELRU\n"
         << "Cache size: " << size << std::endl;
+  }
+
+  std::array<size_t, 27> buckets() {
+    std::array<size_t, 27> b;
+    for (size_t i = 0; i < 27; ++i) {
+      b[i] = bucket[i];
+      bucket[i] = 0;
+    }
+    return b;
   }
 };
 
@@ -81,6 +92,8 @@ struct bin_dictionary {
   }
 
   void evict() {
-    std::max_element(bins.begin(), bins.end())->pop_front();
+    auto maximal = std::max_element(bins.begin(), bins.end());
+    maximal->pop_front();
+    ++bucket[maximal->size()];
   }
 };

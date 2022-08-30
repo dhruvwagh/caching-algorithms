@@ -34,22 +34,41 @@ function plot_yaml()
         println(name)
 
         yaml = YAML.load_file(string("./logs/", file); dicttype=Dict{Symbol,Any})
-        if yaml[:lru_2] == yaml[:lfu]
+        if any(yaml[:lru_2] .== yaml[:lfu])
             delete!(yaml, :lru_2)
+        end
+        if any(yaml[:lru_3] .== yaml[:lfu])
             delete!(yaml, :lru_3)
         end
         if startswith(name, "wiki")
             delete!(yaml, :mru)
         end
 
-        foreach(key -> delete!(yaml, key), [:belady])
+        convex = startswith(name, "wiki") || name == "oltp"
+        if !convex
+            delete!(yaml, :belady)
+        end
 
         xs = getindex.(yaml |> values |> first, :size)
         ys = map(runs -> getindex.(runs, :hit_rate), yaml |> values)
         labels = reshape(yaml |> keys |> collect .|> string, 1, :)
 
-        plot(xs, ys; title=name, label=labels,
-            xlabel="Number of Keys", ylabel="Hit Rate", legend=:bottomright)
+        plot(xs, ys; title=name, label=labels, markershape=:auto,
+            xlabel="Number of Keys", ylabel="Hit Rate",
+            legend=convex ? :bottomright : :topleft)
         savefig(string("./images/", name, ".png"))
+
+        buckets = []
+        for run = yaml[:felru]
+            if haskey(run, :buckets)
+                bucket = 1 .+ vcat(0, run[:buckets])
+                p = plot(bucket; label=run[:size], line=:steppre)
+                push!(buckets, p)
+            end
+        end
+        if !isempty(buckets)
+            plot(buckets...; yscale=:log10)
+            savefig(string("./images/", name, "_bucket", ".png"))
+        end
     end
 end

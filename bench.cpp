@@ -145,6 +145,11 @@ int main(int argc, char const* argv[]) {
   for (auto size : sizes) {
     felru<bin_dictionary> cache_felru(size);
     hit_rate(io, cache_felru);
+    std::cout << "    buckets:\n";
+    auto buckets = cache_felru.buckets();
+    for (auto b : buckets)
+      std::cout << "      - " << b << '\n';
+    std::cout << std::flush;
   }
 
   return 0;
