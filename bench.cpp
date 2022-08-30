@@ -123,12 +123,6 @@ int main(int argc, char const* argv[]) {
     hit_rate(io, cache_lru_2);
   }
 
-  std::cout << "lru_3:" << std::endl;
-  for (auto size : sizes) {
-    lru_k<3> cache_lru_3(size);
-    hit_rate(io, cache_lru_3);
-  }
-
   std::cout << "lfu:" << std::endl;
   for (auto size : sizes) {
     lfu cache_lfu(size);
@@ -141,9 +135,31 @@ int main(int argc, char const* argv[]) {
     hit_rate(io, cache_clock);
   }
 
-  std::cout << "felru:" << std::endl;
+  std::cout << "felru_max:" << std::endl;
   for (auto size : sizes) {
-    felru<bin_dictionary, mul_shift> cache_felru(size);
+    felru<bin_dictionary::pd<bin_dictionary::max_evict>, mul_shift> cache_felru(size);
+    hit_rate(io, cache_felru);
+    std::cout << "    buckets:\n";
+    auto buckets = cache_felru.buckets();
+    for (auto b : buckets)
+      std::cout << "      - " << b << '\n';
+    std::cout << std::flush;
+  }
+
+  std::cout << "felru_q:" << std::endl;
+  for (auto size : sizes) {
+    felru<bin_dictionary::pd<bin_dictionary::evict_q>, mul_shift> cache_felru(size);
+    hit_rate(io, cache_felru);
+    std::cout << "    buckets:\n";
+    auto buckets = cache_felru.buckets();
+    for (auto b : buckets)
+      std::cout << "      - " << b << '\n';
+    std::cout << std::flush;
+  }
+
+  std::cout << "felru_q_max:" << std::endl;
+  for (auto size : sizes) {
+    felru<bin_dictionary::pd<bin_dictionary::max_evict_q>, mul_shift> cache_felru(size);
     hit_rate(io, cache_felru);
     std::cout << "    buckets:\n";
     auto buckets = cache_felru.buckets();

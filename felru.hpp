@@ -2,6 +2,7 @@
 #include <array>
 #include <cinttypes>
 #include <deque>
+#include <functional>
 #include <iostream>
 #include <optional>
 
@@ -56,21 +57,53 @@ struct felru {
   }
 };
 
-struct bin_dictionary {
-  struct element {
-    uint16_t fp;
-    void* val;
-    bool operator==(const element& other) const {
-      return fp == other.fp;
-    }
-  };
-  struct bin : std::deque<element> {
-    bool operator<(const bin& other) const {
-      return size() < other.size();
-    }
-  };
-  std::array<bin, 32> bins;
+namespace bin_dictionary {
+
+struct element {
+  uint16_t fp;
+  void* val;
+  bool operator==(const element& other) const {
+    return fp == other.fp;
+  }
+};
+struct bin : std::deque<element> {
+  bool operator<(const bin& other) const {
+    return size() < other.size();
+  }
+};
+using cache = std::array<bin, 32>;
+
+struct max_evict {
+  bin& operator()(cache& bins, uint16_t) {
+    return *std::max_element(bins.begin(), bins.end());
+  }
+};
+
+struct evict_q {
+  bin& operator()(cache& bins, uint16_t q) {
+    for (uint16_t e = (q + 1) & 31U; e != q; e = (e + 1) & 31U)
+      if (!bins[e].empty()) {
+        return bins[e];
+      }
+    return bins[q];
+  }
+};
+
+struct max_evict_q {
+  bin& operator()(cache& bins, uint16_t q) {
+    uint16_t maximal = q;
+    for (uint16_t e = (q + 1) & 31U; e != q; e = (e + 1) & 31U)
+      if (bins[maximal] < bins[e])
+        maximal = e;
+    return bins[maximal];
+  }
+};
+
+template <typename Evict = max_evict>
+struct pd {
+  cache bins;
   size_t occupancy = 0;
+  Evict policy;
 
   std::optional<element> find(uint16_t fp) {
     uint16_t q = fp & 31U;
@@ -86,16 +119,18 @@ struct bin_dictionary {
   }
 
   void insert(uint16_t fp, void* val) {
-    for (; occupancy >= 27; --occupancy) evict();
     uint16_t q = fp & 31U;
+    for (; occupancy >= 27; --occupancy) evict(q);
     uint16_t r = fp >> 5;
     bins[q].push_back({r, val});
     ++occupancy;
   }
 
-  void evict() {
-    auto maximal = std::max_element(bins.begin(), bins.end());
-    maximal->pop_front();
-    ++bucket[maximal->size()];
+  void evict(uint16_t q) {
+    auto& victim = policy(bins, q);
+    victim.pop_front();
+    ++bucket[victim.size()];
   }
 };
+
+};  // namespace bin_dictionary
