@@ -1,4 +1,4 @@
-using Plots
+using Plots, Measures
 using YAML
 
 files = Dict(
@@ -29,15 +29,18 @@ function main(files)
 end
 
 function plot_yaml()
+    plots = []
     for file = readdir("./logs")
         name, _ = splitext(file)
         println(name)
 
+        mkpath(string("./images/", name))
+
         yaml = YAML.load_file(string("./logs/", file); dicttype=Dict{Symbol,Any})
-        if any(yaml[:lru_2] .== yaml[:lfu])
+        if any(get(yaml, :lru_2, nothing) .== yaml[:lfu])
             delete!(yaml, :lru_2)
         end
-        if any(yaml[:lru_3] .== yaml[:lfu])
+        if any(get(yaml, :lru_3, nothing) .== yaml[:lfu])
             delete!(yaml, :lru_3)
         end
         if startswith(name, "wiki")
@@ -53,22 +56,27 @@ function plot_yaml()
         ys = map(runs -> getindex.(runs, :hit_rate), yaml |> values)
         labels = reshape(yaml |> keys |> collect .|> string, 1, :)
 
-        plot(xs, ys; title=name, label=labels, markershape=:auto,
+        p = plot(xs, ys; title=name, label=labels, markershape=:auto,
             xlabel="Number of Keys", ylabel="Hit Rate",
             legend=convex ? :bottomright : :topleft)
-        savefig(string("./images/", name, ".png"))
+        push!(plots, p)
+        savefig(string("./images/", name, "/hit_rate", ".png"))
 
-        buckets = []
-        for run = yaml[:felru]
-            if haskey(run, :buckets)
-                bucket = 1 .+ vcat(0, run[:buckets])
-                p = plot(bucket; label=run[:size], line=:steppre)
-                push!(buckets, p)
+        for (key, felru) = filter(keyval -> startswith(string(keyval[1]), "felru"), yaml)
+            buckets = []
+            for run = felru
+                if haskey(run, :buckets)
+                    bucket = 1 .+ vcat(0, run[:buckets])
+                    p = plot(bucket; label=run[:size], line=:steppre)
+                    push!(buckets, p)
+                end
+            end
+            if !isempty(buckets)
+                plot(buckets...; yscale=:log10)
+                savefig(string("./images/", name, "/", key, "_bucket", ".png"))
             end
         end
-        if !isempty(buckets)
-            plot(buckets...; yscale=:log10)
-            savefig(string("./images/", name, "_bucket", ".png"))
-        end
     end
+    plot(plots..., layout=(cld(length(plots), 2), 2), size=(800, 2400), left_margin=20mm)
+    savefig("./images/all.png")
 end

@@ -9,12 +9,21 @@ static const size_t max_entries = (1 << 20) / 27;
 
 static size_t bucket[27] = {0};
 
-template <class pd>
+struct mul_shift {
+  static const uint64_t hi = 0x51502a8334304aae;
+  static const uint64_t lo = 0x9743df29cdf1096f;
+  uint64_t operator()(uint64_t x) {
+    return static_cast<unsigned __int128>(x) * ((static_cast<unsigned __int128>(hi) << 64) | lo) >> 64;
+  };
+};
+
+template <class pd, typename Hash = std::identity>
 struct felru {
   // reference : https://github.com/jbapple/crate-dictionary
   const size_t size = max_entries * 27;
   const size_t entries = max_entries;
   std::vector<pd> pds;
+  Hash hasher;
 
   felru(size_t size) : size(size), entries(size / 27) {
     pds.resize(entries);
@@ -30,13 +39,6 @@ struct felru {
     if (!hit) pd_.insert(fp, val);
     return hit;
   }
-
-  static const uint64_t hi = 0x51502a8334304aae;
-  static const uint64_t lo = 0x9743df29cdf1096f;
-
-  uint64_t hasher(uint64_t x) {
-    return static_cast<unsigned __int128>(x) * ((static_cast<unsigned __int128>(hi) << 64) | lo) >> 64;
-  };
 
   void describe() {
     std::cout
