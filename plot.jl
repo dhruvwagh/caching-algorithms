@@ -27,7 +27,20 @@ function main(files)
         cmd = pipeline(`./bench.out $in_f`; stdout=out_f)
         push!(cmds, cmd)
     end
-    run(reduce(&, cmds))
+    while !isempty(cmds)
+        println(cmds)
+        try
+            run(reduce(&, cmds))
+            cmds = []
+            return
+        catch e
+            println(e)
+            if isa(e, ProcessFailedException)
+                fail = map(p -> p.cmd, e.procs)
+                cmds = filter(p -> p.cmd in fail, cmds)
+            end
+        end
+    end
 end
 
 function plot_yaml()
@@ -45,11 +58,13 @@ function plot_yaml()
         if any(get(yaml, :lru_3, nothing) .== yaml[:lfu])
             delete!(yaml, :lru_3)
         end
-        if startswith(name, "wiki")
+
+        dist = startswith(name, "wiki") || startswith(name, "zipf")
+        if dist
             delete!(yaml, :mru)
         end
 
-        convex = startswith(name, "wiki") || name == "oltp"
+        convex = dist || name == "oltp"
         if !convex
             delete!(yaml, :belady)
         end
@@ -81,4 +96,8 @@ function plot_yaml()
     end
     plot(plots..., layout=(cld(length(plots), 2), 2), size=(800, 2400), left_margin=20mm)
     savefig("./images/all.png")
+end
+
+if abspath(PROGRAM_FILE) == @__FILE__
+    main(files)
 end
