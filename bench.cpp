@@ -96,8 +96,8 @@ int main(int argc, char const* argv[]) {
 
   std::vector<size_t> sizes;
   sizes.reserve(10);
-  for (size_t i = 1; i <= 10; ++i)
-    sizes.push_back(i << 12);
+  for (size_t i = 1; i <= (1 << 10); i *= 2)
+    sizes.push_back(i << 10);
 
   std::cout << "belady:" << std::endl;
   for (auto size : sizes) {

@@ -27,24 +27,22 @@ function main(files)
         cmd = pipeline(`./bench.out $in_f`; stdout=out_f)
         push!(cmds, cmd)
     end
-    while !isempty(cmds)
-        println(cmds)
-        try
-            run(reduce(&, cmds))
-            cmds = []
-            return
-        catch e
-            println(e)
-            if isa(e, ProcessFailedException)
-                fail = map(p -> p.cmd, e.procs)
-                cmds = filter(p -> p.cmd in fail, cmds)
-            end
+    try
+        run(reduce(&, cmds))
+    catch e
+        println(e)
+        if isa(e, ProcessFailedException)
+            fail = map(p -> p.cmd, e.procs)
+            cmds = filter(p -> p.cmd in fail, cmds)
+            println(cmds)
+            foreach(run, cmds)
         end
     end
 end
 
 function plot_yaml()
     plots = []
+    all_markers = [:circle, :rect, :star5, :diamond, :hexagon, :utriangle, :pentagon, :star4, :star6]
     for file = readdir("./logs")
         name, _ = splitext(file)
         println(name)
@@ -69,32 +67,32 @@ function plot_yaml()
             delete!(yaml, :belady)
         end
 
-        xs = getindex.(yaml |> values |> first, :size)
-        ys = map(runs -> getindex.(runs, :hit_rate), yaml |> values)
-        labels = reshape(yaml |> keys |> collect .|> string, 1, :)
+        delete!(yaml, :felru_q_max)
 
-        p = plot(xs, ys; title=name, label=labels, markershape=:auto,
+        p = plot(; title=name, xscale=:log10,
             xlabel="Number of Keys", ylabel="Hit Rate",
             legend=convex ? :bottomright : :topleft)
+        markers = repeat(all_markers, cld(length(yaml), length(all_markers)))
+        for (key, val) = yaml
+            xs = getindex.(val, :size)
+            ys = getindex.(val, :hit_rate)
+            plot!(xs, ys; label=string(key),
+                markershape=pop!(markers), markerstrokewidth=0.5)
+        end
         push!(plots, p)
         savefig(string("./images/", name, "/hit_rate", ".png"))
 
-        for (key, felru) = filter(keyval -> startswith(string(keyval[1]), "felru"), yaml)
-            buckets = []
-            for run = felru
-                if haskey(run, :buckets)
-                    bucket = 1 .+ vcat(0, run[:buckets])
-                    p = plot(bucket; label=run[:size], line=:steppre)
-                    push!(buckets, p)
-                end
-            end
-            if !isempty(buckets)
-                plot(buckets...; yscale=:log10)
-                savefig(string("./images/", name, "/", key, "_bucket", ".png"))
-            end
+        yaml = filter(keyval -> all(haskey.(keyval[2], :buckets)), yaml)
+        for (key, felru) = yaml
+            buckets =
+                [plot(1 .+ vcat(0, run[:buckets]);
+                    label=run[:size], line=:steppre) for run = felru]
+            plot(buckets...; yscale=:log10, dpi=300,
+                xlabel="Evicted bucket size", ylabel="frequency", guidefont=8)
+            savefig(string("./images/", name, "/", key, "_bucket", ".png"))
         end
     end
-    plot(plots..., layout=(cld(length(plots), 2), 2), size=(800, 2400), left_margin=20mm)
+    plot(plots..., layout=(cld(length(plots), 2), 2), size=(800, 2400), left_margin=20mm, dpi=300)
     savefig("./images/all.png")
 end
 
