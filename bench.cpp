@@ -135,34 +135,37 @@ int main(int argc, char const* argv[]) {
     hit_rate(io, cache_clock);
   }
 
-  std::cout << "felru_max:" << std::endl;
+  std::cout << "fe_lru_max:" << std::endl;
+  using pd_1 = bin_dictionary::pd<bin_dictionary::fe_lru<bin_dictionary::max_evict>>;
   for (auto size : sizes) {
-    felru<bin_dictionary::pd<bin_dictionary::max_evict>, mul_shift> cache_felru(size);
-    hit_rate(io, cache_felru);
+    bin_cache<pd_1, mul_shift> cache_fe_lru(size);
+    hit_rate(io, cache_fe_lru);
     std::cout << "    buckets:\n";
-    auto buckets = cache_felru.buckets();
+    auto buckets = cache_fe_lru.buckets();
     for (auto b : buckets)
       std::cout << "      - " << b << '\n';
     std::cout << std::flush;
   }
 
-  std::cout << "felru_q:" << std::endl;
+  std::cout << "fe_lru_q:" << std::endl;
+  using pd_2 = bin_dictionary::pd<bin_dictionary::fe_lru<bin_dictionary::evict_q>>;
   for (auto size : sizes) {
-    felru<bin_dictionary::pd<bin_dictionary::evict_q>, mul_shift> cache_felru(size);
-    hit_rate(io, cache_felru);
+    bin_cache<pd_2, mul_shift> cache_fe_lru(size);
+    hit_rate(io, cache_fe_lru);
     std::cout << "    buckets:\n";
-    auto buckets = cache_felru.buckets();
+    auto buckets = cache_fe_lru.buckets();
     for (auto b : buckets)
       std::cout << "      - " << b << '\n';
     std::cout << std::flush;
   }
 
-  std::cout << "felru_q_max:" << std::endl;
+  std::cout << "fe_mru_q:" << std::endl;
+  using pd_3 = bin_dictionary::pd<bin_dictionary::fe_mru<bin_dictionary::evict_q>>;
   for (auto size : sizes) {
-    felru<bin_dictionary::pd<bin_dictionary::max_evict_q>, mul_shift> cache_felru(size);
-    hit_rate(io, cache_felru);
+    bin_cache<pd_3, mul_shift> cache_fe_mru(size);
+    hit_rate(io, cache_fe_mru);
     std::cout << "    buckets:\n";
-    auto buckets = cache_felru.buckets();
+    auto buckets = cache_fe_mru.buckets();
     for (auto b : buckets)
       std::cout << "      - " << b << '\n';
     std::cout << std::flush;

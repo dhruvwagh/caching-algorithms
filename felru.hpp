@@ -19,14 +19,14 @@ struct mul_shift {
 };
 
 template <class pd, typename Hash = std::identity>
-struct felru {
+struct bin_cache {
   // reference : https://github.com/jbapple/crate-dictionary
   const size_t size = max_entries * 27;
   const size_t entries = max_entries;
   std::vector<pd> pds;
   Hash hasher;
 
-  felru(size_t size) : size(size), entries(size / 27) {
+  bin_cache(size_t size) : size(size), entries(size / 27) {
     pds.resize(entries);
   }
 
@@ -89,21 +89,31 @@ struct evict_q {
   }
 };
 
-struct max_evict_q {
-  bin& operator()(cache& bins, uint16_t q) {
-    uint16_t maximal = q;
-    for (uint16_t e = (q + 1) & 31U; e != q; e = (e + 1) & 31U)
-      if (bins[maximal] < bins[e])
-        maximal = e;
-    return bins[maximal];
+template <typename Evict = max_evict>
+struct fe_lru {
+  Evict evict;
+  void operator()(cache& bins, uint16_t q) {
+    auto& victim = evict(bins, q);
+    victim.pop_front();
+    ++bucket[victim.size()];
   }
 };
 
 template <typename Evict = max_evict>
+struct fe_mru {
+  Evict evict;
+  void operator()(cache& bins, uint16_t q) {
+    auto& victim = evict(bins, q);
+    victim.pop_back();
+    ++bucket[victim.size()];
+  }
+};
+
+template <typename Evict = fe_lru<>>
 struct pd {
   cache bins;
   size_t occupancy = 0;
-  Evict policy;
+  Evict evict;
 
   std::optional<element> find(uint16_t fp) {
     uint16_t q = fp & 31U;
@@ -120,16 +130,10 @@ struct pd {
 
   void insert(uint16_t fp, void* val) {
     uint16_t q = fp & 31U;
-    for (; occupancy >= 27; --occupancy) evict(q);
+    for (; occupancy >= 27; --occupancy) evict(bins, q);
     uint16_t r = fp >> 5;
     bins[q].push_back({r, val});
     ++occupancy;
-  }
-
-  void evict(uint16_t q) {
-    auto& victim = policy(bins, q);
-    victim.pop_front();
-    ++bucket[victim.size()];
   }
 };
 
