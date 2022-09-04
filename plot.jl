@@ -1,11 +1,12 @@
 using Plots, Measures
 using YAML
+using Dates
 
 files = Dict(
     "zipf_07.yaml" => "zipf_07",
     "zipf_09.yaml" => "zipf_09",
     "P6.lis" => "p6",
-    # "P8.lis" => "p8",
+    "P8.lis" => "p8",
     "P9.lis" => "p9",
     "P10.lis" => "p10",
     # "P11.lis" => "p11",
@@ -27,17 +28,22 @@ function main(files)
         cmd = pipeline(`./bench.out $in_f`; stdout=out_f)
         push!(cmds, cmd)
     end
-    try
-        run(reduce(&, cmds))
-    catch e
-        println(e)
-        if isa(e, ProcessFailedException)
-            fail = map(p -> p.cmd, e.procs)
-            cmds = filter(p -> p.cmd in fail, cmds)
-            println(cmds)
-            foreach(run, cmds)
-        end
+    println("Start : ", Dates.now())
+    for cmds = Iterators.partition(cmds, 4)
+        try
+            run(reduce(&, cmds))
+        catch e
+            println(e)
+            if isa(e, ProcessFailedException)
+                fail = map(p -> p.cmd, e.procs)
+                cmds = filter(p -> p.cmd in fail, cmds)
+                println(cmds)
+                foreach(run, cmds)
+            end
+        end 
     end
+    println("End : ", Dates.now())
+    plot_yaml()
 end
 
 function plot_yaml()
@@ -83,10 +89,10 @@ function plot_yaml()
         savefig(string("./images/", name, "/hit_rate", ".png"))
 
         yaml = filter(keyval -> all(haskey.(keyval[2], :buckets)), yaml)
-        for (key, felru) = yaml
+        for (key, bin) = yaml
             buckets =
                 [plot(1 .+ vcat(0, run[:buckets]);
-                    label=run[:size], line=:steppre) for run = felru]
+                    label=run[:size], line=:steppre) for run = bin]
             plot(buckets...; yscale=:log10, dpi=300,
                 xlabel="Evicted bucket size", ylabel="frequency", guidefont=8)
             savefig(string("./images/", name, "/", key, "_bucket", ".png"))
