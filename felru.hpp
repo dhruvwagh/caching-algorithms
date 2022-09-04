@@ -94,7 +94,7 @@ struct fe_lru {
   Evict evict;
   void operator()(cache& bins, uint16_t q) {
     auto& victim = evict(bins, q);
-    victim.pop_front();
+    victim.pop_back();
     ++bucket[victim.size()];
   }
 };
@@ -104,7 +104,7 @@ struct fe_mru {
   Evict evict;
   void operator()(cache& bins, uint16_t q) {
     auto& victim = evict(bins, q);
-    victim.pop_back();
+    victim.pop_front();
     ++bucket[victim.size()];
   }
 };
@@ -132,7 +132,7 @@ struct pd {
     uint16_t q = fp & 31U;
     for (; occupancy >= 27; --occupancy) evict(bins, q);
     uint16_t r = fp >> 5;
-    bins[q].push_back({r, val});
+    bins[q].push_front({r, val});
     ++occupancy;
   }
 };

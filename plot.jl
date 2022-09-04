@@ -40,7 +40,7 @@ function main(files)
                 println(cmds)
                 foreach(run, cmds)
             end
-        end 
+        end
     end
     println("End : ", Dates.now())
     plot_yaml()
@@ -48,7 +48,7 @@ end
 
 function plot_yaml()
     plots = []
-    all_markers = [:circle, :rect, :star5, :diamond, :hexagon, :utriangle, :pentagon, :star4, :star6]
+    all_markers = [:circle, :rect, :star5, :diamond, :utriangle, :pentagon, :star4, :star6, :hexagon]
     for file = readdir("./logs")
         name, _ = splitext(file)
         println(name)
@@ -75,9 +75,11 @@ function plot_yaml()
 
         delete!(yaml, :felru_q_max)
 
-        p = plot(; title=name, xscale=:log10,
+        shape = startswith(name, "s") || startswith(name, "p")
+
+        p = plot(; title=name, xscale=:log10, yscale=shape ? :log10 : :auto,
             xlabel="Number of Keys", ylabel="Hit Rate",
-            legend=convex ? :bottomright : :topleft)
+            legend=convex || shape ? :bottomright : :topleft)
         markers = repeat(all_markers, cld(length(yaml), length(all_markers)))
         for (key, val) = yaml
             xs = getindex.(val, :size)
