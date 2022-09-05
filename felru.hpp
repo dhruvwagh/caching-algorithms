@@ -6,8 +6,6 @@
 #include <iostream>
 #include <optional>
 
-static const size_t max_entries = (1 << 20) / 27;
-
 static size_t bucket[27] = {0};
 
 struct mul_shift {
@@ -21,6 +19,8 @@ struct mul_shift {
 template <class pd, typename Hash = std::identity>
 struct bin_cache {
   // reference : https://github.com/jbapple/crate-dictionary
+  static const size_t max_entries = (1 << 20) / 27;
+
   const size_t size = max_entries * 27;
   const size_t entries = max_entries;
   std::vector<pd> pds;
@@ -47,13 +47,11 @@ struct bin_cache {
         << "Cache size: " << size << std::endl;
   }
 
-  std::array<size_t, 27> buckets() {
-    std::array<size_t, 27> b;
-    for (size_t i = 0; i < 27; ++i) {
-      b[i] = bucket[i];
-      bucket[i] = 0;
-    }
-    return b;
+  auto buckets() {
+    std::array<size_t, 27> buckets;
+    std::copy(bucket, bucket + 27, buckets.begin());
+    std::fill(bucket, bucket + 27, 0);
+    return buckets;
   }
 };
 
@@ -82,9 +80,8 @@ struct max_evict {
 struct evict_q {
   bin& operator()(cache& bins, uint16_t q) {
     for (uint16_t e = (q + 1) & 31U; e != q; e = (e + 1) & 31U)
-      if (!bins[e].empty()) {
+      if (!bins[e].empty())
         return bins[e];
-      }
     return bins[q];
   }
 };
@@ -109,6 +106,7 @@ struct fe_mru {
   }
 };
 
+
 template <typename Evict = fe_lru<>>
 struct pd {
   cache bins;
@@ -118,7 +116,7 @@ struct pd {
   std::optional<element> find(uint16_t fp) {
     uint16_t q = fp & 31U;
     uint16_t r = fp >> 5;
-    auto bin_ = bins[q];
+    auto& bin_ = bins[q];
     auto slot = std::find(bin_.begin(), bin_.end(), element{r, nullptr});
     if (slot == bin_.end())
       return {};
