@@ -6,6 +6,7 @@
 #include <iostream>
 #include <optional>
 
+static const size_t max_entries = (1 << 20) / 27;
 static size_t bucket[27] = {0};
 
 struct mul_shift {
@@ -19,7 +20,6 @@ struct mul_shift {
 template <class pd, typename Hash = std::identity>
 struct bin_cache {
   // reference : https://github.com/jbapple/crate-dictionary
-  static const size_t max_entries = (1 << 20) / 27;
 
   const size_t size = max_entries * 27;
   const size_t entries = max_entries;
@@ -71,12 +71,6 @@ struct bin : std::deque<element> {
 };
 using cache = std::array<bin, 32>;
 
-struct max_evict {
-  bin& operator()(cache& bins, uint16_t) {
-    return *std::max_element(bins.begin(), bins.end());
-  }
-};
-
 struct evict_q {
   bin& operator()(cache& bins, uint16_t q) {
     for (uint16_t e = (q + 1) & 31U; e != q; e = (e + 1) & 31U)
@@ -86,7 +80,7 @@ struct evict_q {
   }
 };
 
-template <typename Evict = max_evict>
+template <typename Evict = evict_q>
 struct fe_lru {
   Evict evict;
   void operator()(cache& bins, uint16_t q) {
@@ -96,22 +90,11 @@ struct fe_lru {
   }
 };
 
-template <typename Evict = max_evict>
-struct fe_mru {
-  Evict evict;
-  void operator()(cache& bins, uint16_t q) {
-    auto& victim = evict(bins, q);
-    victim.pop_front();
-    ++bucket[victim.size()];
-  }
-};
-
-
-template <typename Evict = fe_lru<>>
+template <typename Policy = fe_lru<>>
 struct pd {
   cache bins;
   size_t occupancy = 0;
-  Evict evict;
+  Policy evict;
 
   std::optional<element> find(uint16_t fp) {
     uint16_t q = fp & 31U;

@@ -29,7 +29,7 @@ function main(files)
         push!(cmds, cmd)
     end
     println("Start : ", Dates.now())
-    for cmds = Iterators.partition(cmds, 4)
+    for cmds = Iterators.partition(cmds, 6)
         try
             run(reduce(&, cmds))
         catch e
@@ -48,7 +48,7 @@ end
 
 function plot_yaml()
     plots = []
-    all_markers = [:circle, :rect, :star5, :diamond, :utriangle, :pentagon, :star4, :star6, :hexagon]
+    all_markers = [:dtriangle, :star5, :diamond, :utriangle, :pentagon, :star4, :star6, :hexagon, :circle]
     for file = readdir("./logs")
         name, _ = splitext(file)
         println(name)
@@ -69,16 +69,10 @@ function plot_yaml()
         end
 
         convex = dist || name == "oltp"
-        if !convex
-            delete!(yaml, :belady)
-        end
-
-        delete!(yaml, :felru_q_max)
-
         shape = startswith(name, "s") || startswith(name, "p")
 
         p = plot(; title=name, xscale=:log10, yscale=shape ? :log10 : :auto,
-            xlabel="Number of Keys", ylabel="Hit Rate",
+            xlabel="Number of Keys", ylabel="Hit Rate", dpi=300,
             legend=convex || shape ? :bottomright : :topleft)
         markers = repeat(all_markers, cld(length(yaml), length(all_markers)))
         for (key, val) = yaml
