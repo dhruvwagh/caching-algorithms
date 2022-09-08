@@ -12,7 +12,7 @@ OBJS = $(patsubst %.cpp,%.o,$(wildcard *.cpp))
 
 .PHONY: all
 
-BINS = bench.out
+BINS = bench.out parallel.out
 
 all: $(BINS)
 
