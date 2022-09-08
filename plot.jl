@@ -83,16 +83,6 @@ function plot_yaml()
         end
         push!(plots, p)
         savefig(string("./images/", name, "/hit_rate", ".png"))
-
-        yaml = filter(keyval -> all(haskey.(keyval[2], :buckets)), yaml)
-        for (key, bin) = yaml
-            buckets =
-                [plot(1 .+ vcat(0, run[:buckets]);
-                    label=run[:size], line=:steppre) for run = bin]
-            plot(buckets...; yscale=:log10, dpi=300,
-                xlabel="Evicted bucket size", ylabel="frequency", guidefont=8)
-            savefig(string("./images/", name, "/", key, "_bucket", ".png"))
-        end
     end
     plot(plots..., layout=(cld(length(plots), 2), 2), size=(800, 2400), left_margin=20mm, dpi=300)
     savefig("./images/all.png")

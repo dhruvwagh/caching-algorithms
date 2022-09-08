@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cinttypes>
 #include <deque>
 #include <functional>
@@ -7,7 +8,6 @@
 #include <optional>
 
 static const size_t max_entries = (1 << 20) / 27;
-static size_t bucket[27] = {0};
 
 struct mul_shift {
   static const uint64_t hi = 0x51502a8334304aae;
@@ -46,12 +46,29 @@ struct bin_cache {
         << "Cache Eviction Policy: FELRU\n"
         << "Cache size: " << size << std::endl;
   }
+};
 
-  auto buckets() {
-    std::array<size_t, 27> buckets;
-    std::copy(bucket, bucket + 27, buckets.begin());
-    std::fill(bucket, bucket + 27, 0);
-    return buckets;
+template <class pd, size_t size, typename Hash = std::identity>
+struct par_bin_cache {
+  static const size_t entries = size / 27;
+  std::array<pd, entries> pds;
+  Hash hasher;
+
+  auto set(size_t key, void* val) {
+    auto hash = hasher(key);
+    auto b = hash % entries;
+    uint16_t fp = static_cast<uint16_t>(hash / entries);
+    auto& pd_ = pds[b];
+
+    while (pd_.locked())
+      ;  // spin lock
+
+    auto lookup = pd_.find(fp);
+    auto hit = lookup.has_value();
+    if (!hit) pd_.insert(fp, val);
+
+    pd_.release();
+    return hit;
   }
 };
 
@@ -86,7 +103,6 @@ struct fe_lru {
   void operator()(cache& bins, uint16_t q) {
     auto& victim = evict(bins, q);
     victim.pop_back();
-    ++bucket[victim.size()];
   }
 };
 
@@ -116,6 +132,16 @@ struct pd {
     bins[q].push_front({r, val});
     ++occupancy;
   }
+};
+
+template <typename Policy = fe_lru<>>
+struct par_pd : pd<Policy> {
+  std::atomic<bool> atom;
+
+  par_pd() : atom(false) {}
+
+  bool locked() { return atom.exchange(true); }
+  void release() { atom.store(false); }
 };
 
 };  // namespace bin_dictionary
