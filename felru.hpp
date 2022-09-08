@@ -48,12 +48,14 @@ struct bin_cache {
   }
 };
 
-template <class pd, size_t size, typename Hash = std::identity>
+template <class pd, typename Hash = std::identity>
 struct par_bin_cache {
-  static const size_t entries = size / 27;
-  std::array<pd, entries> pds;
+  const size_t entries = max_entries;
+  std::vector<pd> pds;
   Hash hasher;
 
+  par_bin_cache(size_t size) : entries(size / 27), pds(entries) {}
+  
   auto set(size_t key, void* val) {
     auto hash = hasher(key);
     auto b = hash % entries;

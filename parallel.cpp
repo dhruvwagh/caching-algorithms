@@ -1,30 +1,15 @@
 #include <atomic>
 #include <cstddef>
+#include <numeric>
 #include <thread>
 #include <vector>
 
 #include "felru.hpp"
 #include "io.hpp"
 
-int main(int argc, char const* argv[]) {
-  if (argc < 2) return 1;
-
-  auto fname = std::string(argv[1]);
-
-  std::vector<size_t> io;
-  if (fname.ends_with(".lis"))
-    io = load_arc(fname);
-  else if (fname.ends_with(".yaml"))
-    io = load_zipf(fname);
-  else
-    io = load_wiki(fname);
-
-  const size_t num = 8;
+template <typename Cache>
+void hit_rate(Cache& cache, const size_t num, std::vector<size_t>& io) {
   std::atomic<size_t> hit(0);
-
-  std::cout << "fe_lru:" << std::endl;
-  using pd = bin_dictionary::par_pd<>;
-  par_bin_cache<pd, 1 << 14, mul_shift> cache;
 
   using iter = std::vector<size_t>::iterator;
   auto fn = [&](const iter begin, const iter end) {
@@ -45,7 +30,32 @@ int main(int argc, char const* argv[]) {
   for (auto& th : threads) th.join();
 
   auto ratio = (double)hit / (double)(stride * num);
-  std::cout << "  -\n"
-            << "    size: " << (1 << 14) << '\n'
-            << "    hit_rate: " << ratio << std::endl;
+  std::cout << "    hit_rate: " << ratio << std::endl;
+}
+
+int main(int argc, char const* argv[]) {
+  if (argc < 2) return 1;
+
+  auto fname = std::string(argv[1]);
+
+  std::vector<size_t> io;
+  if (fname.ends_with(".lis"))
+    io = load_arc(fname);
+  else if (fname.ends_with(".yaml"))
+    io = load_zipf(fname);
+  else
+    io = load_wiki(fname);
+
+  std::cout << "fe_lru:" << std::endl;
+  using pd = bin_dictionary::par_pd<>;
+
+  std::vector sizes{1 << 13, 1 << 14, 1 << 15, 1 << 16, 1 << 17};
+  for (auto size : sizes)
+    for (auto num = 1; num <= 8; ++num) {
+      std::cout << "  -\n"
+                << "    num: " << num << '\n'
+                << "    size: " << size << std::endl;
+      par_bin_cache<pd, mul_shift> cache(size);
+      hit_rate(cache, num, io);
+    }
 }
