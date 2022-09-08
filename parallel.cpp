@@ -1,4 +1,5 @@
 #include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <numeric>
 #include <thread>
@@ -22,15 +23,21 @@ void hit_rate(Cache& cache, const size_t num, std::vector<size_t>& io) {
   std::vector<std::thread> threads;
   auto it = io.begin();
   size_t stride = io.size() / num;
-  for (size_t i = 0; i < num; ++i) {
+  for (size_t i = 1; i < num; ++i) {
     threads.emplace_back(fn, it, it + stride);
     it += stride;
   }
+  threads.emplace_back(fn, it, io.end());
 
+  auto start = std::chrono::high_resolution_clock::now();
   for (auto& th : threads) th.join();
+  auto stop = std::chrono::high_resolution_clock::now();
+  auto diff = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
 
-  auto ratio = (double)hit / (double)(stride * num);
-  std::cout << "    hit_rate: " << ratio << std::endl;
+  auto hit_rate = (double)hit / (double)io.size();
+  auto throughput = (double)io.size() / (double)diff.count();
+  std::cout << "        throughput: " << throughput << std::endl;
+  std::cout << "        hit_rate: " << hit_rate << std::endl;
 }
 
 int main(int argc, char const* argv[]) {
@@ -46,16 +53,20 @@ int main(int argc, char const* argv[]) {
   else
     io = load_wiki(fname);
 
+  std::vector sizes{1 << 13, 1 << 14, 1 << 15, 1 << 16, 1 << 17};
+
   std::cout << "fe_lru:" << std::endl;
   using pd = bin_dictionary::par_pd<>;
 
-  std::vector sizes{1 << 13, 1 << 14, 1 << 15, 1 << 16, 1 << 17};
-  for (auto size : sizes)
+  for (auto size : sizes) {
+    std::cout << "  -\n"
+              << "    size: " << size << '\n'
+              << "    threads: " << std::endl;
     for (auto num = 1; num <= 8; ++num) {
-      std::cout << "  -\n"
-                << "    num: " << num << '\n'
-                << "    size: " << size << std::endl;
+      std::cout << "      -\n"
+                << "        num: " << num << std::endl;
       par_bin_cache<pd, mul_shift> cache(size);
       hit_rate(cache, num, io);
     }
+  }
 }
