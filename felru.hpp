@@ -143,7 +143,7 @@ struct par_pd : pd<Policy> {
   par_pd() : atom(false) {}
 
   bool locked() { return atom.exchange(true); }
-  void release() { atom.store(false); }
+  void release() { atom.store(false, std::memory_order_release); }
 };
 
 };  // namespace bin_dictionary
