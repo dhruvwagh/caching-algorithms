@@ -10,6 +10,14 @@
 #include <iostream>
 #include <optional>
 
+struct spin_lock {
+  std::atomic_flag flag = ATOMIC_FLAG_INIT;
+  void lock() {
+    while(flag.test_and_set(std::memory_order_acquire))
+      while(flag.test(std::memory_order_relaxed)) ; // spin lock
+  }
+  void unlock() { flag.clear(std::memory_order_release); }
+};
 
 static const size_t max_entries = (1 << 20) / 27;
 
@@ -66,14 +74,13 @@ struct par_bin_cache {
     uint16_t fp = static_cast<uint16_t>(hash / entries);
     auto& pd_ = pds[b];
 
-    while (pd_.locked())
-      ;  // spin lock
+    pd_.lock();
 
     auto lookup = pd_.find(fp);
     auto hit = lookup.has_value();
     if (!hit) pd_.insert(fp, val);
 
-    pd_.release();
+    pd_.unlock();
     return hit;
   }
 };
@@ -142,12 +149,9 @@ struct pd {
 
 template <typename Policy = lru<>>
 struct par_pd : pd<Policy> {
-  std::atomic<bool> atom;
-
-  par_pd() : atom(false) {}
-
-  bool locked() { return atom.exchange(true, std::memory_order_acquire); }
-  void release() { atom.store(false, std::memory_order_release); }
+  spin_lock s;
+  void lock() { s.lock(); }
+  void unlock() { s.unlock(); }
 };
 
 };  // namespace bin_dictionary
@@ -250,12 +254,9 @@ struct pd {
 
 template <typename Evict = evict_q>
 struct par_pd : pd<Evict> {
-  std::atomic<bool> atom;
-
-  par_pd() : atom(false) {}
-
-  bool locked() { return atom.exchange(true, std::memory_order_acquire); }
-  void release() { atom.store(false, std::memory_order_release); }
+  spin_lock s;
+  void lock() { s.lock(); }
+  void unlock() { s.unlock(); }
 };
 
 }; // namespace fano_elias
