@@ -61,8 +61,23 @@ int main(int argc, char const* argv[]) {
   static const size_t N = std::thread::hardware_concurrency();
   std::vector sizes{1 << 13, 1 << 14, 1 << 15, 1 << 16, 1 << 17};
 
+  std::cout << "bin_lru:" << std::endl;
+  using bin_pd = bin_dictionary::par_pd<>;
+
+  for (auto size : sizes) {
+    std::cout << "  -\n"
+              << "    size: " << size << '\n'
+              << "    threads: " << std::endl;
+    for (auto num = N; num >= 1; --num) {
+      std::cout << "      -\n"
+                << "        num: " << num << std::endl;
+      par_bin_cache<bin_pd, mul_shift> cache(size);
+      hit_rate(cache, num, io);
+    }
+  }
+
   std::cout << "fe_lru:" << std::endl;
-  using pd = bin_dictionary::par_pd<>;
+  using pd = fano_elias::par_pd<>;
 
   for (auto size : sizes) {
     std::cout << "  -\n"

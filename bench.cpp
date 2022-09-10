@@ -74,10 +74,17 @@ int main(int argc, char const* argv[]) {
     hit_rate(io, cache_clock);
   }
 
-  std::cout << "fe_lru:" << std::endl;
-  using pd_2 = bin_dictionary::pd<bin_dictionary::fe_lru<>>;
+  std::cout << "bin_lru:" << std::endl;
+  using bin_pd = bin_dictionary::pd<bin_dictionary::lru<>>;
   for (auto size : sizes) {
-    bin_cache<pd_2, mul_shift> cache_fe_lru(size);
+    bin_cache<bin_pd, mul_shift> cache_bin_lru(size);
+    hit_rate(io, cache_bin_lru);
+  }
+
+  std::cout << "fe_lru:" << std::endl;
+  using pd = fano_elias::pd<>;
+  for (auto size : sizes) {
+    bin_cache<pd, mul_shift> cache_fe_lru(size);
     hit_rate(io, cache_fe_lru);
   }
 

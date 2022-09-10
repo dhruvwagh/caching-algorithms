@@ -89,14 +89,14 @@ end
 
 function plot_throughput(name, yaml)
     p = plot(; title=name, xlabel="Number of Threads", ylabel="Throughput", 
-                dpi=300, legend = :bottomright)
-    markers = repeat(all_markers, cld(length(yaml), length(all_markers)))
+             dpi=300, legend = :bottomright)
+    markers = repeat(all_markers, cld(length(yaml) * length(yaml |> values |> first), length(all_markers)))
     for (key, vals) = yaml
         for val = vals
             th = val[:threads]
             xs = getindex.(th, :num)
             ys = getindex.(th, :throughput)
-            plot!(xs, ys; label=string(val[:size]),
+            plot!(xs, ys; label=string(key, ": ", val[:size]),
                 markershape=pop!(markers), markerstrokewidth=0.5)
         end
     end
