@@ -38,9 +38,7 @@ struct bin_cache {
   std::vector<pd> pds;
   Hash hasher;
 
-  bin_cache(size_t size) : size(size), entries(size / 27) {
-    pds.resize(entries);
-  }
+  bin_cache(size_t size) : size(size), entries(size / 27), pds(entries) {}
 
   auto set(size_t key, void* val) {
     auto hash = hasher(key);
@@ -192,11 +190,13 @@ struct evict_q {
 
 
 
-template <typename Evict = evict_q>
+template <typename Evict = evict_q, typename Lock = uint8_t>
 struct pd {
   uint64_t header = 0xffff'ffffUL;
   element bins[27] = {element{0, 0}};
   int8_t freelist = 0;
+  Lock s;
+
   uint64_t ptr_table[27] =
     { 1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13,
      14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27};
@@ -253,10 +253,9 @@ struct pd {
 
 
 template <typename Evict = evict_q>
-struct par_pd : pd<Evict> {
-  spin_lock s;
-  void lock() { s.lock(); }
-  void unlock() { s.unlock(); }
+struct par_pd : pd<Evict, spin_lock> {
+  void lock() { this->s.lock(); }
+  void unlock() { this->s.unlock(); }
 };
 
 }; // namespace fano_elias
