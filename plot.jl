@@ -36,7 +36,7 @@ function hit_rate(files)
     cmds = []
     for (in_f, out_f) = files
         in_f = string("./data/", in_f)
-        out_f = string("./logs/", out_f, ".yaml")
+        out_f = string("./logs/hit_rate/", out_f, ".yaml")
         cmd = pipeline(`./bench.out $in_f`; stdout=out_f)
         push!(cmds, cmd)
     end
@@ -62,7 +62,7 @@ function throughput(files)
     println("Start : ", Dates.now())
     for (in_f, out_f) = files
         in_f = string("./data/", in_f)
-        out_f = string("./logs/", out_f, ".yaml")
+        out_f = string("./logs/throughput/", out_f, ".yaml")
         cmd = pipeline(`./parallel.out $in_f`; stdout=out_f)
         run(cmd)
     end
@@ -72,10 +72,9 @@ end
 
 function plot_hit_rate(name, yaml)
     convex = startswith(name, "wiki") || startswith(name, "zipf") || name == "oltp"
-    shape = startswith(name, "s") || startswith(name, "p")
-    p = plot(; title=name, xscale=:log10, yscale=shape ? :log10 : :auto,
+    p = plot(; title=name, xscale=:log10,
         xlabel="Number of Keys", ylabel="Hit Rate", dpi=300,
-        legend=convex || shape ? :bottomright : :topleft)
+        legend=convex ? :bottomright : :topleft)
     markers = repeat(all_markers, cld(length(yaml), length(all_markers)))
     for (key, val) = yaml
         xs = getindex.(val, :size)
@@ -96,7 +95,7 @@ function plot_throughput(name, yaml)
             th = val[:threads]
             xs = getindex.(th, :num)
             ys = getindex.(th, :throughput)
-            plot!(xs, ys; label=string(key, ": ", val[:size]),
+            plot!(xs, ys; label=string(val[:size]),
                 markershape=pop!(markers), markerstrokewidth=0.5)
         end
     end
@@ -105,35 +104,31 @@ function plot_throughput(name, yaml)
 end
 
 function plot_yaml()
-    plots = []
+    for dir = ["hit_rate", "throughput"]
+        plots = []
+	for file = readdir(string("./logs/", dir))
+	    name, _ = splitext(file)
+            println(name)
+            
+            mkpath(string("./images/", name))
+            
+            yaml = YAML.load_file(string("./logs/", dir, "/", file); dicttype=Dict{Symbol,Any})
 
-    for file = readdir("./logs")
-        name, _ = splitext(file)
-        println(name)
-
-        mkpath(string("./images/", name))
-
-        yaml = YAML.load_file(string("./logs/", file); dicttype=Dict{Symbol,Any})
-        if any(get(yaml, :lru_2, nothing) .== get(yaml, :lfu, nothing))
+            delete!(yaml, :bin_lru)
             delete!(yaml, :lru_2)
-        end
-        if any(get(yaml, :lru_3, nothing) .== get(yaml, :lfu, nothing))
-            delete!(yaml, :lru_3)
-        end
-
-        dist = startswith(name, "wiki") || startswith(name, "zipf")
-        if dist
-            delete!(yaml, :mru)
-        end
-
-        # push!(plots, plot_hit_rate(name, yaml))
-        push!(plots, plot_throughput(name, yaml))
+	    if dir == "hit_rate"
+		push!(plots, plot_hit_rate(name, yaml))
+	    else
+		push!(plots, plot_throughput(name, yaml))
+	    end
+	end
+    	lines = cld(length(plots), 2)
+    	plot(plots..., layout=(lines, 2), size=(800, lines * 300), left_margin=20mm, dpi=300)
+	savefig(string("./images/", dir, "_all.png"))
     end
-    plot(plots..., layout=(cld(length(plots), 2), 2), size=(800, 2400), left_margin=20mm, dpi=300)
-    savefig("./images/all.png")
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    # hit_rate(files)
+    hit_rate(files)
     throughput(files)
 end
