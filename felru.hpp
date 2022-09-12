@@ -157,12 +157,19 @@ struct par_pd : pd<Policy> {
 
 namespace fano_elias {
 
-inline uint64_t pdep(uint64_t mask, uint64_t el) {
-  return _pdep_u64(mask, el);
-}
-
 inline uint64_t bit_index(uint64_t el, uint16_t s) {
-  return pdep(1UL << s, el);
+#if __BMI2__
+  return _pdep_u64(1UL << s, el);
+#else
+  uint64_t dest = 0;
+  uint64_t mask = 1UL << s;
+  for(uint16_t m = 0; m < 64; ++m) {
+    auto bit = (el >> m) & 1UL;
+    dest |= (mask & bit) << m;
+    mask >>= bit;
+  }
+  return dest;
+#endif
 }
 
 inline uint16_t select(uint64_t el, uint16_t s) {
