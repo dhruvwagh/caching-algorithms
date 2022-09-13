@@ -40,14 +40,14 @@ struct bin_cache {
 
   bin_cache(size_t size) : size(size), entries(size / 27), pds(entries) {}
 
-  auto set(size_t key, void* val) {
+  auto set(size_t key, void*) {
     auto hash = hasher(key);
     auto b = hash % entries;
     uint16_t fp = static_cast<uint16_t>(hash / entries);
     auto& pd_ = pds[b];
-    auto lookup = pd_.find(fp);
+    auto lookup = pd_.find(fp, key);
     auto hit = lookup.has_value();
-    if (!hit) pd_.insert(fp, val);
+    if (!hit) pd_.insert(fp, key);
     return hit;
   }
 
@@ -66,7 +66,7 @@ struct par_bin_cache {
 
   par_bin_cache(size_t size) : entries(size / 27), pds(entries) {}
   
-  auto set(size_t key, void* val) {
+  auto set(size_t key, void*) {
     auto hash = hasher(key);
     auto b = hash % entries;
     uint16_t fp = static_cast<uint16_t>(hash / entries);
@@ -74,9 +74,9 @@ struct par_bin_cache {
 
     pd_.lock();
 
-    auto lookup = pd_.find(fp);
+    auto lookup = pd_.find(fp, key);
     auto hit = lookup.has_value();
-    if (!hit) pd_.insert(fp, val);
+    if (!hit) pd_.insert(fp, key);
 
     pd_.unlock();
     return hit;
@@ -87,9 +87,9 @@ namespace bin_dictionary {
 
 struct element {
   uint16_t fp;
-  void* val;
+  size_t key; // in practice, a pointer to the key-value pair
   bool operator==(const element& other) const {
-    return fp == other.fp;
+    return (fp == other.fp) & (key == other.key);
   }
 };
 struct bin : std::deque<element> {
@@ -123,11 +123,11 @@ struct pd {
   size_t occupancy = 0;
   Policy evict;
 
-  std::optional<element> find(uint16_t fp) {
+  std::optional<element> find(uint16_t fp, size_t key) {
     uint16_t q = fp & 31U;
     uint16_t r = fp >> 5;
     auto& bin_ = bins[q];
-    auto slot = std::find(bin_.begin(), bin_.end(), element{r, nullptr});
+    auto slot = std::find(bin_.begin(), bin_.end(), element{r, key});
     if (slot == bin_.end())
       return {};
     else {
@@ -136,11 +136,11 @@ struct pd {
     }
   }
 
-  void insert(uint16_t fp, void* val) {
+  void insert(uint16_t fp, size_t key) {
     uint16_t q = fp & 31U;
     for (; occupancy >= 27; --occupancy) evict(bins, q);
     uint16_t r = fp >> 5;
-    bins[q].push_front({r, val});
+    bins[q].push_front({r, key});
     ++occupancy;
   }
 };
@@ -224,7 +224,7 @@ struct pd {
     freelist = prev;
   }
 
-  std::optional<void*> find(uint16_t fp) {
+  std::optional<size_t> find(uint16_t fp, size_t key) {
     uint16_t q = fp & 31U;
     uint16_t r = fp >> 5;
 
@@ -234,13 +234,15 @@ struct pd {
     auto slot = std::find(bins + begin, bins + end, element{0, r});
     if (slot == bins + end)
       return {};
-    else {
+    else if(auto found = ptr_table[slot->index]; found == key) {
       std::rotate(bins + begin, slot, slot + 1);
-      return (void*) ptr_table[bins[begin].index];
+      return found;
     }
+    else
+      return {};
   }
 
-  void insert(uint16_t fp, void* val) {
+  void insert(uint16_t fp, size_t key) {
     uint16_t q = fp & 31U;
     if (freelist >= 27) evict(q);
     uint16_t r = fp >> 5;
@@ -254,7 +256,7 @@ struct pd {
     uint16_t ptr_slot = freelist;
     freelist = ptr_table[freelist];
     bins[slot] = {ptr_slot, r};
-    ptr_table[ptr_slot] = (uint64_t)val;
+    ptr_table[ptr_slot] = (uint64_t)key;
   }
 };
 
