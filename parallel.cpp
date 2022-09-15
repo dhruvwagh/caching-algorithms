@@ -40,9 +40,9 @@ void throughput(std::vector<size_t>& io, Cache& cache, const size_t num) {
   size_t hit = std::accumulate(hits.begin(), hits.end(), 0UL);
   auto hit_rate = (double)hit / (double)io.size();
   auto throughput = (double)io.size() / (double)diff.count();
-  std::cout << "        throughput: " << throughput << std::endl;
-  std::cout << "        hit_rate: " << hit_rate << std::endl;
-  std::cout << "        hits: " << hit << std::endl;
+  std::cout << "    throughput: " << throughput << std::endl;
+  std::cout << "    hit_rate: " << hit_rate << std::endl;
+  std::cout << "    hits: " << hit << std::endl;
 }
 
 int main(int argc, char const* argv[]) {
@@ -58,21 +58,16 @@ int main(int argc, char const* argv[]) {
   else
     io = load_wiki(fname);
 
-  static const size_t N = std::thread::hardware_concurrency();
-  std::vector sizes{1 << 13, 1 << 14, 1 << 15, 1 << 16, 1 << 17};
+  static const size_t N = std::min(std::thread::hardware_concurrency(), 10U);
+  
 
   std::cout << "fe_lru:" << std::endl;
   using pd = fano_elias::par_pd<>;
 
-  for (auto size : sizes) {
+  for (auto num = N; num >= 1; --num) {
     std::cout << "  -\n"
-              << "    size: " << size << '\n'
-              << "    threads: " << std::endl;
-    for (auto num = N; num >= 1; --num) {
-      std::cout << "      -\n"
-                << "        num: " << num << std::endl;
-      par_bin_cache<pd, mul_shift> cache(size);
-      throughput(io, cache, num);
-    }
+	      << "    num: " << num << std::endl;
+    par_bin_cache<pd, mul_shift> cache(1 << 17);
+    throughput(io, cache, num);
   }
 }

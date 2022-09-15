@@ -49,17 +49,14 @@ end
 
 
 function plot_throughput(name, yaml)
-    p = plot(; title=name, xlabel="Number of Threads", ylabel="Throughput", 
+    p = plot(; title=name, xlabel="Number of Threads", ylabel="Throughput [MOp/s]", 
              dpi=300, legend = :bottomright)
-    markers = repeat(all_markers, cld(length(yaml) * length(yaml |> values |> first), length(all_markers)))
+    markers = repeat(all_markers, cld(length(yaml), length(all_markers)))
     for (key, vals) = yaml
-        for val = vals
-            th = val[:threads]
-            xs = getindex.(th, :num)
-            ys = getindex.(th, :throughput)
-            plot!(xs, ys; label=string(val[:size]),
-                markershape=pop!(markers), markerstrokewidth=0.5)
-        end
+        xs = getindex.(vals, :num)
+        ys = getindex.(vals, :throughput)
+        plot!(xs, ys; label=string(key),
+            markershape=pop!(markers), markerstrokewidth=0.5)
     end
     savefig(string("./images/", name, "/throughput", ".png"))
     p
@@ -110,4 +107,8 @@ function plot_yaml()
             savefig(string("./images/avg_competitive.png"))
         end
     end
+end
+
+if abspath(PROGRAM_FILE) == @__FILE__
+    plot_yaml()
 end

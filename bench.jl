@@ -59,6 +59,6 @@ function throughput(files)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    hit_rate(files)
-    # throughput(files)
+    # hit_rate(files)
+    throughput(files)
 end
